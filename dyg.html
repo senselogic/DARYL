@@ -55,6 +55,23 @@
 
     // ~~
 
+    function GetUnsuffixedText(
+        text,
+        suffix
+        )
+    {
+        if ( text.endsWith( suffix ) )
+        {
+            return text.slice( 0, -suffix.length );
+        }
+        else
+        {
+            return text;
+        }
+    }
+
+    // ~~
+
     function GetCleanText(
         text
         )
@@ -128,7 +145,7 @@
 
         for ( attribute_text of attribute_text_array )
         {
-            attribute_line_array = attribute_text.split( "\n" );
+            attribute_line_array = attribute_text.trim().split( "\n" );
 
             if ( attribute_line_array.length >= 2 )
             {
@@ -140,8 +157,8 @@
                 {
                     attribute_array.push(
                         {
-                            type : attribute_type,
-                            name : attribute_line_array[ attribute_line_index ]
+                            Type : attribute_type,
+                            Name : GetUnsuffixedText( attribute_line_array[ attribute_line_index ], "," )
                         }
                         );
                 }
