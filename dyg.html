@@ -1,0 +1,463 @@
+<meta charset="utf-8">
+<style>
+    *
+    {
+        padding : 0;
+        margin : 0;
+
+        font-family: sans-serif;
+    }
+
+    textarea
+    {
+        height: 100%;
+        width: 100%;
+    }
+
+    .main-grid
+    {
+        height: 99vh;
+
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .button
+    {
+        padding: 0.5vh;
+    }
+</style>
+<div class="main-grid">
+    <input id="class-text" class="class-text" placeholder="Class" spellcheck="false"/>
+    <input id="base-class-text" class="base-class-text" placeholder="Base Class" spellcheck="false"/>
+    <textarea id="attribute-list-text" class="attribute-list-text" placeholder="Attribute list" spellcheck="false"></textarea>
+    <textarea id="code" class="code" placeholder="Code" spellcheck="false"></textarea>
+    <div>
+        <button class="button" onclick="GenerateCode()">Generate</button>
+    </div>
+</div>
+<script>
+    function GetUnprefixedText(
+        text,
+        prefix
+        )
+    {
+        if ( text.startsWith( prefix ) )
+        {
+            return text.slice( prefix.length );
+        }
+        else
+        {
+            return text;
+        }
+    }
+
+    // ~~
+
+    function GetCleanText(
+        text
+        )
+    {
+        var
+            clean_text,
+            line,
+            line_array;
+
+        clean_text = "";
+        line_array = text.replaceAll( "\r", "" ).split( "\n" );
+
+        for ( line of line_array )
+        {
+            line = line.trim();
+
+            if ( line !== "" )
+            {
+                clean_text += line.trim() + "\n";
+            }
+        }
+
+        return clean_text.trim();
+    }
+
+    // ~~
+
+    function GetTypeName(
+        class_text
+        )
+    {
+        return (
+            GetUnprefixedText(
+                GetCleanText( class_text ),
+                "class "
+                ).trim()
+            );
+    }
+
+    // ~~
+
+    function GetBaseTypeName(
+        base_class_text
+        )
+    {
+        base_class_text = GetCleanText( base_class_text );
+
+        return (
+            GetUnprefixedText(
+                GetCleanText( base_class_text ),
+                "extends "
+                ).trim()
+            );
+    }
+
+    // ~~
+
+    function GetAttributeArray(
+        attribute_list_text
+        )
+    {
+        var
+            attribute_array,
+            attribute_line_array,
+            attribute_line_index,
+            attribute_text,
+            attribute_text_array;
+
+        attribute_array = [];
+        attribute_text_array = GetCleanText( attribute_list_text ).split( ";" );
+
+        for ( attribute_text of attribute_text_array )
+        {
+            attribute_line_array = attribute_text.split( "\n" );
+
+            if ( attribute_line_array.length >= 2 )
+            {
+                attribute_type = attribute_line_array[ 0 ].trim();
+
+                for ( attribute_line_index = 1;
+                      attribute_line_index < attribute_line_array.length;
+                      ++attribute_line_index )
+                {
+                    attribute_array.push(
+                        {
+                            type : attribute_type,
+                            name : attribute_line_array[ attribute_line_index ]
+                        }
+                        );
+                }
+            }
+        }
+
+        return attribute_array;
+    }
+
+    // ~~
+
+    function GetCode(
+        class_name,
+        base_class_name,
+        attribute_array
+        )
+    {
+        var
+            attribute,
+            attribute_declaration,
+            attribute_type,
+            class_declaration,
+            code;
+
+        class_declaration = "class " + class_name;
+        attribute_declaration = "";
+        attribute_type = "";
+
+        for ( attribute of attribute_array )
+        {
+            if ( attribute.Type == attribute_type )
+            {
+                attribute_declaration = attribute_declaration.slice( 0, -2 ) + ",\n";
+            }
+            else
+            {
+                attribute_type = attribute.Type;
+                attribute_declaration += "    final " + attribute.Type + "\n";
+            }
+
+            attribute_declaration += "        " + attribute.Name + ";\n";
+        }
+
+        code
+            += "// -- TYPES\n"
+               + "\n"
+               + class_declaration
+               + "\n{\n"
+               + "    // -- ATTRIBUTES\n"
+               + "\n"
+               + attribute_declaration
+               + "\n    "
+               + "// -- CONSTRUCTORS\n"
+               + "\n"
+               + "    "
+               + class_name
+               + "(\n"
+               + "        {\n";
+
+        for ( attribute of attribute_array )
+        {
+            code
+                += "            required this."
+                   + attribute.Name
+                   + ",\n";
+        }
+
+        if ( code.endsWith( ",\n" ) )
+        {
+            code = code.slice( 0, -2 ) + '\n';
+        }
+
+        code
+            += "        }\n"
+               + "        );\n"
+               + "\n"
+               + "    // -- OPERATORS\n"
+               + "\n"
+               + "    @override\n"
+               + "    bool operator==(\n"
+               + "        Object other\n"
+               + "        )\n"
+               + "    {\n"
+               + "        if ( identical( this, other ) )\n"
+               + "        {\n"
+               + "            return true;\n"
+               + "        }\n"
+               + "        else\n"
+               + "        {\n"
+               + "            return\n"
+               + "                other is "
+               + class_name
+               + "\n";
+
+        for ( attribute of attribute_array )
+        {
+            if ( code.endsWith( ";\n" ) )
+            {
+                code = code.slice( 0, -2 ) + '\n';
+            }
+
+            code
+                += "                && other."
+                   + attribute.Name
+                   + " == "
+                   + attribute.Name
+                   + ";\n";
+        }
+
+        code
+            += "        }\n"
+               + "    }\n"
+               + "\n"
+               + "    // -- INQUIRIES\n"
+               + "\n"
+               + "    "
+               + class_name
+               + " copyWith(\n"
+               + "        {\n";
+
+        for ( attribute of attribute_array )
+        {
+            code
+                += "            "
+                   + attribute.Type
+                   + "? "
+                   + attribute.Name
+                   + ",\n";
+        }
+
+        if ( code.endsWith( ",\n" ) )
+        {
+            code = code.slice( 0, -2 ) + "\n";
+        }
+
+        code
+            += "        }\n"
+               + "        )\n"
+               + "    {\n"
+               + "        return "
+               + class_name
+               + "(\n";
+
+        for ( attribute of attribute_array )
+        {
+            code
+                += "            "
+                   + attribute.Name
+                   + ": "
+                   + attribute.Name
+                   + " ?? this."
+                   + attribute.Name
+                   + ",\n";
+        }
+
+        if ( code.endsWith( ",\n" ) )
+        {
+            code = code.slice( 0, -2 ) + "\n";
+        }
+
+        code
+            += "            );\n"
+               + "    }\n"
+               + "\n"
+               + "    // ~~\n"
+               + "\n"
+               + "    factory "
+               + class_name
+               + ".fromMap(\n"
+               + "        Map<String, dynamic> map\n"
+               + "        )"
+               + "\n"
+               + "    {\n"
+               + "        return "
+               + class_name
+               + "(\n";
+
+        for ( attribute of attribute_array )
+        {
+            code
+                += "            "
+                   + attribute.Name
+                   + ": ";
+
+            if ( attribute.Type.startsWith( "List<" )
+                 || attribute.Type.startsWith( "Map<" ) )
+            {
+                code
+                    += attribute.Type
+                       + ".from( map[ '"
+                       + attribute.Name
+                       + "' ] ),\n";
+            }
+            else
+            {
+                code
+                    += "map[ '"
+                       + attribute.Name
+                       + "' ],\n";
+            }
+        }
+
+        if ( code.endsWith( ",\n" ) )
+        {
+            code = code.slice( 0, -2 ) + '\n';
+        }
+
+        code
+            += "            );\n"
+               + "    }\n"
+               + "\n"
+               + "    // ~~\n"
+               + "\n"
+               + "    Map<String, dynamic> toMap(\n"
+               + "        )\n"
+               + "    {\n"
+               + "        return\n"
+               + "            {\n";
+
+        for ( attribute of attribute_array )
+        {
+            code
+                += "                '"
+                   + attribute.Name
+                   + "': "
+                   + attribute.Name
+                   + ",\n";
+        }
+
+        if ( code.endsWith( ",\n" ) )
+        {
+            code = code.slice( 0, -2 ) + '\n';
+        }
+
+        code
+            += "            };\n"
+               + "    }\n"
+               + "\n"
+               + "    // ~~\n"
+               + "\n"
+               + "    @override\n"
+               + "    String toString(\n"
+               + "        )\n"
+               + "    {\n"
+               + "        return '"
+               + class_name
+               + " {";
+
+        for ( attribute of attribute_array )
+        {
+            code
+                += " "
+                   + attribute.Name
+                   + ": $"
+                   + attribute.Name
+                   + ",";
+        }
+
+        if ( code.endsWith( "," ) )
+        {
+            code = code.slice( 0, -1 ) + " ";
+        }
+
+        code
+            += "}';\n"
+               + "    }\n";
+
+        if ( attribute_array.length > 0 )
+        {
+            code
+                += "\n"
+                   + "    // ~~\n"
+                   + "\n"
+                   + "    @override\n"
+                   + "    int get hashCode\n"
+                   + "    {\n"
+                   + "        return "
+                   + attribute_array[ 0 ].Name
+                   + ".hashCode;\n"
+                   + "    }\n";
+        }
+
+        code
+            += "}\n";
+
+        return code;
+    }
+
+    // ~~
+
+    function GenerateCode(
+        )
+    {
+        var
+            attribute_array,
+            attribute_list_text_element,
+            base_class_name,
+            base_class_text_element,
+            class_name,
+            class_text_element,
+            code,
+            code_element;
+
+        class_text_element = document.getElementById( "class-text" );
+        base_class_text_element = document.getElementById( "base-class-text" );
+        attribute_list_text_element = document.getElementById( "attribute-list-text" );
+
+        class_name = GetTypeName( class_text_element.value );
+        base_class_name = GetBaseTypeName( base_class_text_element.value );
+        attribute_array = GetAttributeArray( attribute_list_text_element.value );
+        code = GetCode( class_name, base_class_name, attribute_array );
+
+        code_element = document.getElementById( "code" );
+        code_element.value = code;
+        code_element.focus();
+        code_element.setSelectionRange( 0, code.length );
+        document.execCommand( "copy" );
+    }
+</script>
