@@ -1,6 +1,6 @@
-![](https://github.com/senselogic/DYG/blob/master/LOGO/dyg.png)
+![](https://github.com/senselogic/DARYL/blob/master/LOGO/daryl.png)
 
-# Dyg
+# Daryl
 
 Dart entity generator.
 
